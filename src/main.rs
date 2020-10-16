@@ -1,9 +1,25 @@
-mod chip_8;
-use chip_8::Chip8;
+mod chip8;
+use chip8::Chip8;
 
 fn main() {
-    let chip8 = Chip8{};
+    // setup graphics
+    // setup input
 
+    let mut chip8 = Chip8::new();
     chip8.initialize();
-    chip8.emulate_cycle();
+    chip8.load_game();
+
+    loop {
+        chip8.emulate_cycle();
+
+        if chip8.should_draw() {
+            // draw to screen
+        }
+
+        chip8.set_keys();
+        
+        if chip8.should_quit() {
+            break;
+        }
+    }
 }
