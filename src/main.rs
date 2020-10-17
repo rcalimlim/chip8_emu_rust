@@ -7,7 +7,7 @@ fn main() {
 
     let mut chip8 = Chip8::new();
     chip8.initialize();
-    chip8.load_game();
+    chip8.load_rom("../chip8-test-rom/test_opcode.ch8");
 
     loop {
         chip8.emulate_cycle();
@@ -17,9 +17,7 @@ fn main() {
         }
 
         chip8.set_keys();
-        
-        if chip8.should_quit() {
-            break;
-        }
+
+        break;
     }
 }

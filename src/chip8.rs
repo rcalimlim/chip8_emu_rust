@@ -1,15 +1,18 @@
+use std::fs::File;
+use std::io::Read;
+
 pub struct Chip8 {
-    opcode: u16, // current opcode
+    opcode: u16,        // current opcode
     memory: [u8; 4096], // 4K memory
-    v: [u8; 16], // V0-VE registers
-    i: u16, // index register
-    pc: u16, // program counter
+    v: [u8; 16],        // V0-VE registers
+    i: u16,             // index register
+    pc: u16,            // program counter
     gfx: [u8; 64 * 32], // graphics
-    delay_timer: u8, // counter register at 60Hz, counts down to 0
-    sound_timer: u8, // counter plays sound at 0, counts down to 0
-    stack: [u16; 16], // opcode stack
-    sp: u16, // stack pointer
-    key: [u8; 16], // hex keypad to store key state
+    delay_timer: u8,    // counter register at 60Hz, counts down to 0
+    sound_timer: u8,    // counter plays sound at 0, counts down to 0
+    stack: [u16; 16],   // opcode stack
+    sp: u16,            // stack pointer
+    key: [u8; 16],      // hex keypad to store key state
 }
 
 impl Chip8 {
@@ -18,8 +21,8 @@ impl Chip8 {
             opcode: 0,
             memory: [0; 4096],
             v: [0; 16],
-            i: 0, 
-            pc: 0,
+            i: 0,
+            pc: 0x200,
             gfx: [0; 64 * 32],
             delay_timer: 0,
             sound_timer: 0,
@@ -33,13 +36,21 @@ impl Chip8 {
         // initialize:
         // - registers
         // - memory
-       for (i, font_byte) in FONTS.iter().enumerate() {
-          self.memory[i] = *font_byte;
-       }  
+        for (i, font_byte) in FONTS.iter().enumerate() {
+            self.memory[i] = *font_byte;
+        }
     }
 
-    pub fn load_game(&self) {
+    pub fn load_rom(&mut self, rom_path: &str) {
         // read game data into memory
+        let rom = match File::open(rom_path) {
+            Ok(file) => file,
+            Err(e) => panic!("Error opening file: {:?}", e),
+        };
+
+        for (i, byte) in rom.bytes().enumerate() {
+            self.memory[0x200 + i] = byte.unwrap();
+        }
     }
 
     pub fn emulate_cycle(&self) {
@@ -56,10 +67,6 @@ impl Chip8 {
 
     pub fn set_keys(&self) {
         // store key press state
-    }
-
-    pub fn should_quit(&self) -> bool {
-        true
     }
 }
 
@@ -85,11 +92,27 @@ const FONTS: [u8; 80] = [
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Read;
 
     #[test]
     fn read_fonts_into_memory() {
         let mut chip8 = Chip8::new();
         chip8.initialize();
         assert_eq!(chip8.memory[..80].iter().eq(FONTS.iter()), true);
+    }
+
+    #[test]
+    fn load_rom_into_memory() {
+        let mut chip8 = Chip8::new();
+        chip8.initialize();
+        chip8.load_rom("test/test-rom.ch8");
+
+        let mut data: Vec<u8> = Vec::new();
+        let mut rom = match File::open("test/test-rom.ch8") {
+            Ok(file) => file,
+            Err(e) => panic!("Could not open test rom: {:?}", e),
+        };
+        rom.read_to_end(&mut data).unwrap();
+        assert_eq!(chip8.memory[0x200..0x208].to_vec(), data);
     }
 }
