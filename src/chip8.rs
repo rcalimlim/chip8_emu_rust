@@ -136,6 +136,6 @@ mod tests {
             Err(e) => panic!("Could not open test rom: {:?}", e),
         };
         rom.read_to_end(&mut data).unwrap();
-        assert_eq!(chip8.memory[0x200..0x208].to_vec(), data);
+        assert_eq!(chip8.memory[0x200..(0x200 + data.len())].to_vec(), data);
     }
 }
