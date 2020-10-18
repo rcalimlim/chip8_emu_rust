@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Read;
+use crate::instructions::*;
 
 pub struct Chip8 {
     pub opcode: u16,        // current opcode
@@ -61,7 +62,14 @@ impl Chip8 {
         self.opcode = (high_byte as u16) << 8 | low_byte as u16;
 
         // decode opcode
-        match self.opcode & 0xF000 {
+        let opcode_nibbles = [
+            self.opcode >> 12,
+            self.opcode >> 8 & 0xF,
+            self.opcode >> 4 & 0xF,
+            self.opcode & 0xF,
+        ];
+        match opcode_nibbles {
+            [0x1, _, _, _] => jp_addr(self),
             _ => panic!("Not a valid opcode: {:?}", self.opcode),
         }
 

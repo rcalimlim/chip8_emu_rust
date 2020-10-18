@@ -1,4 +1,5 @@
 mod chip8;
+mod instructions;
 use chip8::Chip8;
 
 fn main() {
