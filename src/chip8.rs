@@ -2,17 +2,17 @@ use std::fs::File;
 use std::io::Read;
 
 pub struct Chip8 {
-    opcode: u16,        // current opcode
-    memory: [u8; 4096], // 4K memory
-    v: [u8; 16],        // V0-VE registers
-    i: u16,             // index register
-    pc: u16,            // program counter
-    gfx: [u8; 64 * 32], // graphics
-    delay_timer: u8,    // counter register at 60Hz, counts down to 0
-    sound_timer: u8,    // counter plays sound at 0, counts down to 0
-    stack: [u16; 16],   // opcode stack
-    sp: u16,            // stack pointer
-    key: [u8; 16],      // hex keypad to store key state
+    pub opcode: u16,        // current opcode
+    pub memory: [u8; 4096], // 4K memory
+    pub v: [u8; 16],        // V0-VE registers
+    pub i: u16,             // index register
+    pub pc: u16,            // program counter
+    pub gfx: [u8; 64 * 32], // graphics
+    pub stack: [u16; 16],   // opcode stack
+    pub sp: u16,            // stack pointer
+    pub key: [u8; 16],      // hex keypad to store key state
+    pub delay_timer: u8,    // counter register at 60Hz, counts down to 0
+    pub sound_timer: u8,    // counter plays sound at 0, counts down to 0
 }
 
 impl Chip8 {
@@ -53,12 +53,27 @@ impl Chip8 {
         }
     }
 
-    pub fn emulate_cycle(&self) {
+    pub fn emulate_cycle(&mut self) {
         // fetch opcode
+        let counter: usize = self.pc.into();
+        let high_byte = self.memory[counter];
+        let low_byte = self.memory[counter + 1];
+        self.opcode = (high_byte as u16) << 8 | low_byte as u16;
+
         // decode opcode
-        // execute opcode
+        match self.opcode & 0xF000 {
+            _ => panic!("Not a valid opcode: {:?}", self.opcode),
+        }
 
         // update timers
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+
+        if self.sound_timer > 0 {
+            println!("*Beep*");
+            self.sound_timer -= 1;
+        }
     }
 
     pub fn should_draw(&self) -> bool {
