@@ -1,6 +1,6 @@
+use crate::instructions::*;
 use std::fs::File;
 use std::io::Read;
-use crate::instructions::*;
 
 pub struct Chip8 {
     pub opcode: u16,        // current opcode
