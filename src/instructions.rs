@@ -142,8 +142,19 @@ pub fn ld_i_vx(chip8: &mut Chip8) {}
 /// `Fx65` - Read registers V0 through Vx from memory starting at location I.
 pub fn ld_vx_i(chip8: &mut Chip8) {}
 
+/// Helper function that returns the nibble from the passed index (starting from 0) bit-shifted
+/// to the right.
+fn to_nibbles(word: &u16) -> [u8; 4] {
+    [
+        ((word & 0xF000) >> 12) as u8,
+        ((word & 0x0F00) >> 8) as u8,
+        ((word & 0x00F0) >> 4) as u8,
+        (word & 0x000F) as u8,
+    ]
+}
+
 #[cfg(test)]
-mod tests {
+mod instruction_tests {
     use super::*;
 
     fn setup() -> Chip8 {
@@ -291,6 +302,23 @@ mod tests {
             chip8.pc,
             initial_pc + 2,
             "should increment program counter by 2"
+        );
+    }
+}
+
+#[cfg(test)]
+mod helper_tests {
+    use super::*;
+
+    #[test]
+    fn test_to_nibbles() {
+        let word: u16 = 0xA0CD;
+        let nibbles = to_nibbles(&word);
+
+        assert_eq!(
+            [0xA, 0x0, 0xC, 0xD],
+            nibbles,
+            "should return correct array of nibbles"
         );
     }
 }
