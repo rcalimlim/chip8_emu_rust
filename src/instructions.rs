@@ -1,4 +1,5 @@
 use crate::chip8::Chip8;
+use crate::lib::opcode_to_variables;
 
 /// 0nnn - Jump to a machine code routine at nnn.
 pub fn sys_addr(chip8: &mut Chip8) {
@@ -28,39 +29,36 @@ pub fn call_addr(chip8: &mut Chip8) {
 
 /// `3xkk` - Skip next instruction if Vx = kk.
 pub fn se_vx_byte(chip8: &mut Chip8) {
-    let x = to_nibbles(&chip8.opcode)[1];
-    let kk = chip8.opcode.to_be_bytes()[1];
+    let vars = opcode_to_variables(&chip8.opcode);
 
-    if chip8.v[x] == kk {
+    if chip8.v[vars.x] == vars.kk {
         chip8.pc += 2;
     }
 }
 
 /// `4xkk` - Skip next instruction if Vx != kk.
 pub fn sne_vx_byte(chip8: &mut Chip8) {
-    let x = to_nibbles(&chip8.opcode)[1];
-    let kk = chip8.opcode.to_be_bytes()[1];
+    let vars = opcode_to_variables(&chip8.opcode);
 
-    if chip8.v[x] != kk {
+    if chip8.v[vars.x] != vars.kk {
         chip8.pc += 2;
     }
 }
 
 /// `5xy0` - Skip next instruction if Vx = Vy.
 pub fn se_vx_vy(chip8: &mut Chip8) {
-    let nibbles = to_nibbles(&chip8.opcode);
-    let x = nibbles[1];
-    let y = nibbles[2];
-    let vx = chip8.v[x];
-    let vy = chip8.v[y];
+    let vars = opcode_to_variables(&chip8.opcode);
 
-    if vx == vy {
+    if chip8.v[vars.x] == chip8.v[vars.y] {
         chip8.pc += 2;
     }
 }
 
 /// `6xkk` - Set Vx = kk.
-pub fn ld_vx_byte(chip8: &mut Chip8) {}
+pub fn ld_vx_byte(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    chip8.v[vars.x] = vars.kk;
+}
 
 /// `7xkk` - Set Vx = Vx + kk.
 pub fn add_vx_byte(chip8: &mut Chip8) {}
@@ -79,13 +77,9 @@ pub fn xor_vx_vy(chip8: &mut Chip8) {}
 
 /// `8xy4` - Set Vx = Vx + Vy, set VF = carry.
 pub fn add_vx_vy(chip8: &mut Chip8) {
-    let nibbles = to_nibbles(&chip8.opcode);
-
-    let x = nibbles[1];
-    let y = nibbles[2];
-
-    let vx: u16 = chip8.v[x].into();
-    let vy: u16 = chip8.v[y].into();
+    let vars = opcode_to_variables(&chip8.opcode);
+    let vx: u16 = chip8.v[vars.x].into();
+    let vy: u16 = chip8.v[vars.y].into();
     let mut sum = vx + vy;
 
     if sum > 255 {
@@ -93,7 +87,7 @@ pub fn add_vx_vy(chip8: &mut Chip8) {
         chip8.v[0xF] = 1;
     }
 
-    chip8.v[x] = sum as u8;
+    chip8.v[vars.x] = sum as u8;
     chip8.pc += 2;
 }
 
@@ -150,9 +144,9 @@ pub fn ld_f_vx(chip8: &mut Chip8) {}
 
 /// `Fx33` - Store BCD representation of Vx in memory locations I, I+1, and I+2.
 pub fn ld_b_vx(chip8: &mut Chip8) {
-    let nibbles = to_nibbles(&chip8.opcode);
-    let v_index = nibbles[1];
-    let num = chip8.v[v_index];
+    // let nibbles = to_nibbles(&chip8.opcode);
+    let vars = opcode_to_variables(&chip8.opcode);
+    let num = chip8.v[vars.x];
 
     let hundreds = (num / 100) as u8;
     let tens = (num % 100 / 10) as u8;
@@ -172,19 +166,8 @@ pub fn ld_i_vx(chip8: &mut Chip8) {}
 /// `Fx65` - Read registers V0 through Vx from memory starting at location I.
 pub fn ld_vx_i(chip8: &mut Chip8) {}
 
-/// Helper function that returns the nibble from the passed index (starting from 0) bit-shifted
-/// to the right.
-fn to_nibbles(word: &u16) -> [usize; 4] {
-    [
-        ((word & 0xF000) >> 12) as usize,
-        ((word & 0x0F00) >> 8) as usize,
-        ((word & 0x00F0) >> 4) as usize,
-        (word & 0x000F) as usize,
-    ]
-}
-
 #[cfg(test)]
-mod instruction_tests {
+mod test {
     use super::*;
 
     fn setup() -> Chip8 {
@@ -439,23 +422,6 @@ mod instruction_tests {
             chip8.pc,
             initial_pc + 2,
             "should increment program counter by 2"
-        );
-    }
-}
-
-#[cfg(test)]
-mod helper_tests {
-    use super::*;
-
-    #[test]
-    fn test_to_nibbles() {
-        let word: u16 = 0xA0CD;
-        let nibbles = to_nibbles(&word);
-
-        assert_eq!(
-            [0xA, 0x0, 0xC, 0xD],
-            nibbles,
-            "should return correct array of nibbles"
         );
     }
 }
