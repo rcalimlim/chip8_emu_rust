@@ -55,8 +55,11 @@ pub fn xor_vx_vy(chip8: &mut Chip8) {}
 
 /// `8xy4` - Set Vx = Vx + Vy, set VF = carry.
 pub fn add_vx_vy(chip8: &mut Chip8) {
-    let x: usize = ((chip8.opcode & 0x0F00) >> 8).into();
-    let y: usize = ((chip8.opcode & 0x00F0) >> 4).into();
+    let nibbles = to_nibbles(&chip8.opcode);
+
+    let x = nibbles[1];
+    let y = nibbles[2];
+
     let vx: u16 = chip8.v[x].into();
     let vy: u16 = chip8.v[y].into();
     let mut sum = vx + vy;
@@ -123,11 +126,14 @@ pub fn ld_f_vx(chip8: &mut Chip8) {}
 
 /// `Fx33` - Store BCD representation of Vx in memory locations I, I+1, and I+2.
 pub fn ld_b_vx(chip8: &mut Chip8) {
-    let v_index = chip8.opcode & 0x0F00 >> 8;
-    let num = chip8.v[v_index as usize];
+    let nibbles = to_nibbles(&chip8.opcode);
+    let v_index = nibbles[1];
+    let num = chip8.v[v_index];
+
     let hundreds = (num / 100) as u8;
     let tens = (num % 100 / 10) as u8;
     let ones = (num % 100 % 10) as u8;
+
     let i = chip8.i as usize;
 
     chip8.memory[i] = hundreds;
@@ -144,12 +150,12 @@ pub fn ld_vx_i(chip8: &mut Chip8) {}
 
 /// Helper function that returns the nibble from the passed index (starting from 0) bit-shifted
 /// to the right.
-fn to_nibbles(word: &u16) -> [u8; 4] {
+fn to_nibbles(word: &u16) -> [usize; 4] {
     [
-        ((word & 0xF000) >> 12) as u8,
-        ((word & 0x0F00) >> 8) as u8,
-        ((word & 0x00F0) >> 4) as u8,
-        (word & 0x000F) as u8,
+        ((word & 0xF000) >> 12) as usize,
+        ((word & 0x0F00) >> 8) as usize,
+        ((word & 0x00F0) >> 4) as usize,
+        (word & 0x000F) as usize,
     ]
 }
 
@@ -284,11 +290,10 @@ mod instruction_tests {
     fn test_ld_b_vx() {
         let mut chip8 = setup();
         let test_opcode = 0xFB33;
-        let v_index: usize = test_opcode & 0x0F00 >> 8;
         let initial_i: usize = 100;
         let initial_pc = 5;
-        chip8.opcode = test_opcode as u16;
-        chip8.v[v_index] = 123;
+        chip8.opcode = test_opcode;
+        chip8.v[0xB] = 123;
         chip8.i = initial_i as u16;
         chip8.pc = initial_pc;
         ld_b_vx(&mut chip8);
