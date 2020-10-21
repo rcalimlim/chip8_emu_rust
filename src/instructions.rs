@@ -27,13 +27,37 @@ pub fn call_addr(chip8: &mut Chip8) {
 }
 
 /// `3xkk` - Skip next instruction if Vx = kk.
-pub fn se_vx_byte(chip8: &mut Chip8) {}
+pub fn se_vx_byte(chip8: &mut Chip8) {
+    let x = to_nibbles(&chip8.opcode)[1];
+    let kk = chip8.opcode.to_be_bytes()[1];
+
+    if chip8.v[x] == kk {
+        chip8.pc += 2;
+    }
+}
 
 /// `4xkk` - Skip next instruction if Vx != kk.
-pub fn sne_vx_byte(chip8: &mut Chip8) {}
+pub fn sne_vx_byte(chip8: &mut Chip8) {
+    let x = to_nibbles(&chip8.opcode)[1];
+    let kk = chip8.opcode.to_be_bytes()[1];
+
+    if chip8.v[x] != kk {
+        chip8.pc += 2;
+    }
+}
 
 /// `5xy0` - Skip next instruction if Vx = Vy.
-pub fn se_vx_vy(chip8: &mut Chip8) {}
+pub fn se_vx_vy(chip8: &mut Chip8) {
+    let nibbles = to_nibbles(&chip8.opcode);
+    let x = nibbles[1];
+    let y = nibbles[2];
+    let vx = chip8.v[x];
+    let vy = chip8.v[y];
+
+    if vx == vy {
+        chip8.pc += 2;
+    }
+}
 
 /// `6xkk` - Set Vx = kk.
 pub fn ld_vx_byte(chip8: &mut Chip8) {}
@@ -232,6 +256,114 @@ mod instruction_tests {
     }
 
     #[test]
+    fn test_se_vx_byte_eq() {
+        let mut chip8 = setup();
+        let test_opcode = 0x32B0;
+        let initial_pc = 0;
+        chip8.opcode = test_opcode;
+        chip8.v[2] = 0xB0;
+        chip8.pc = initial_pc;
+        se_vx_byte(&mut chip8);
+
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2 when `vx` equals `kk`"
+        );
+    }
+
+    #[test]
+    fn test_se_vx_byte_neq() {
+        let mut chip8 = setup();
+        let test_opcode = 0x32B0;
+        let initial_pc = 0;
+        chip8.opcode = test_opcode;
+        chip8.v[2] = 0xFF;
+        chip8.pc = initial_pc;
+        se_vx_byte(&mut chip8);
+
+        assert_eq!(
+            initial_pc, chip8.pc,
+            "should not increment program counter when `vx` does not equal `kk`"
+        );
+    }
+
+    #[test]
+    fn test_sne_vx_byte_neq() {
+        let mut chip8 = setup();
+        let test_opcode = 0x32B0;
+        let initial_pc = 0;
+        chip8.opcode = test_opcode;
+        chip8.v[2] = 0xFF;
+        chip8.pc = initial_pc;
+        sne_vx_byte(&mut chip8);
+
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2 when `vx` does not equal `kk`"
+        );
+    }
+
+    #[test]
+    fn test_sne_vx_byte_eq() {
+        let mut chip8 = setup();
+        let initial_pc = 0;
+        chip8.opcode = 0x4CB0;
+        chip8.v[0xC] = 0xB0;
+        chip8.pc = initial_pc;
+        sne_vx_byte(&mut chip8);
+
+        assert_eq!(
+            initial_pc, chip8.pc,
+            "should not increment program counter `vx` equals `kk`"
+        );
+    }
+
+    #[test]
+    fn test_se_vx_vy_eq() {
+        let mut chip8 = setup();
+        let initial_pc = 0;
+        chip8.opcode = 0x5CE0;
+        chip8.pc = initial_pc;
+        chip8.v[0xC] = 0xE;
+        chip8.v[0xE] = 0xE;
+        se_vx_vy(&mut chip8);
+
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2 when `vx` equals `vy`"
+        )
+    }
+
+    #[test]
+    fn test_se_vx_vy_neq() {
+        let mut chip8 = setup();
+        let initial_pc = 0;
+        chip8.opcode = 0x5CE0;
+        chip8.pc = initial_pc;
+        chip8.v[0xC] = 0xE;
+        chip8.v[0xE] = 0xF;
+        se_vx_vy(&mut chip8);
+
+        assert_eq!(
+            initial_pc, chip8.pc,
+            "should not increment program counter when `vx` does not equal `vy`"
+        )
+    }
+
+    #[test]
+    fn test_ld_vx_byte() {
+        let mut chip8 = setup();
+        chip8.opcode = 0x60AA;
+        chip8.v[0x0] = 5;
+        ld_vx_byte(&mut chip8);
+
+        assert_eq!(0xAA, chip8.v[0x0], "should load `kk` into `vx`");
+    }
+
+    #[test]
     fn test_add_vx_vy_no_carry() {
         let mut chip8 = setup();
         let test_opcode = 0x8454;
@@ -241,7 +373,7 @@ mod instruction_tests {
         chip8.opcode = test_opcode;
         chip8.v[4] = initial_v4;
         chip8.v[5] = initial_v5;
-        chip8.v[0xF] = 0; // make sure vf is 0
+        chip8.v[0xF] = 0;
         add_vx_vy(&mut chip8);
 
         assert_eq!(
@@ -267,7 +399,7 @@ mod instruction_tests {
         chip8.opcode = test_opcode;
         chip8.v[4] = initial_v4 as u8;
         chip8.v[5] = initial_v5 as u8;
-        chip8.v[0xF] = 0; // make sure vf is 0
+        chip8.v[0xF] = 0;
         add_vx_vy(&mut chip8);
 
         assert_eq!(
