@@ -58,22 +58,43 @@ pub fn se_vx_vy(chip8: &mut Chip8) {
 pub fn ld_vx_byte(chip8: &mut Chip8) {
     let vars = opcode_to_variables(&chip8.opcode);
     chip8.v[vars.x] = vars.kk;
+    chip8.pc += 2;
 }
 
 /// `7xkk` - Set Vx = Vx + kk.
-pub fn add_vx_byte(chip8: &mut Chip8) {}
+pub fn add_vx_byte(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    chip8.v[vars.x] = chip8.v[vars.x] + vars.kk;
+    chip8.pc += 2;
+}
 
 /// `8xy0` - Set Vx = Vy.
-pub fn ld_vx_vy(chip8: &mut Chip8) {}
+pub fn ld_vx_vy(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    chip8.v[vars.x] = chip8.v[vars.y];
+    chip8.pc += 2;
+}
 
 /// `8xy1` - Set Vx = Vx OR Vy.
-pub fn or_vx_vy(chip8: &mut Chip8) {}
+pub fn or_vx_vy(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    chip8.v[vars.x] = chip8.v[vars.x] | chip8.v[vars.y];
+    chip8.pc += 2;
+}
 
 /// `8xy2` - Set Vx = Vx AND Vy.
-pub fn and_vx_vy(chip8: &mut Chip8) {}
+pub fn and_vx_vy(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    chip8.v[vars.x] = chip8.v[vars.x] & chip8.v[vars.y];
+    chip8.pc += 2;
+}
 
 /// `8xy3` - Set Vx = Vx XOR Vy.
-pub fn xor_vx_vy(chip8: &mut Chip8) {}
+pub fn xor_vx_vy(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    chip8.v[vars.x] = chip8.v[vars.x] ^ chip8.v[vars.y];
+    chip8.pc += 2;
+}
 
 /// `8xy4` - Set Vx = Vx + Vy, set VF = carry.
 pub fn add_vx_vy(chip8: &mut Chip8) {
@@ -92,16 +113,67 @@ pub fn add_vx_vy(chip8: &mut Chip8) {
 }
 
 /// `8xy5` - Set Vx = Vx - Vy, set VF = NOT borrow.
-pub fn sub_vx_vy(chip8: &mut Chip8) {}
+pub fn sub_vx_vy(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    match chip8.v[vars.x] > chip8.v[vars.y] {
+        true => {
+            chip8.v[0xF] = 1;
+            chip8.v[vars.x] = chip8.v[vars.x] - chip8.v[vars.y];
+        }
+        false => {
+            chip8.v[0xF] = 0;
+        }
+    };
+    chip8.pc += 2;
+}
 
 /// `8xy6` - Set Vx = Vx SHR 1.
-pub fn shr_vx_vy(chip8: &mut Chip8) {}
+pub fn shr_vx_vy(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    match chip8.v[vars.x] & 0b1 {
+        0b1 => {
+            chip8.v[0xF] = 1;
+            chip8.v[vars.x] = chip8.v[vars.x] >> 1;
+        }
+        _ => {
+            chip8.v[0xF] = 0;
+        }
+    }
+    chip8.pc += 2;
+}
 
 /// `8xy7` - Set Vx = Vy - Vx, set VF = NOT borrow.
-pub fn subn_vx_vy(chip8: &mut Chip8) {}
+pub fn subn_vx_vy(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    match chip8.v[vars.y] > chip8.v[vars.x] {
+        true => {
+            chip8.v[vars.x] = chip8.v[vars.y] - chip8.v[vars.x];
+            chip8.v[0xF] = 1;
+        }
+        false => {
+            chip8.v[0xF] = 0;
+        }
+    }
+    chip8.pc += 2;
+}
 
 /// `8xyE` - Set Vx = Vx SHL 1.
-pub fn shl_vx_vy(chip8: &mut Chip8) {}
+pub fn shl_vx_vy(chip8: &mut Chip8) {
+    // 8xyE - SHL Vx {, Vy}
+    // Set Vx = Vx SHL 1.
+    // If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
+    let vars = opcode_to_variables(&chip8.opcode);
+    match chip8.v[vars.x] >> 7 {
+        1 => {
+            chip8.v[0xF] = 1;
+        }
+        _ => {
+            chip8.v[0xF] = 0;
+        }
+    }
+    chip8.v[vars.x] = chip8.v[vars.x] << 1;
+    chip8.pc += 2;
+}
 
 /// `9xy0` - Skip next instruction if Vx != Vy.
 pub fn sne_vx_vy(chip8: &mut Chip8) {}
@@ -242,7 +314,7 @@ mod test {
     fn test_se_vx_byte_eq() {
         let mut chip8 = setup();
         let test_opcode = 0x32B0;
-        let initial_pc = 0;
+        let initial_pc = 512;
         chip8.opcode = test_opcode;
         chip8.v[2] = 0xB0;
         chip8.pc = initial_pc;
@@ -259,7 +331,7 @@ mod test {
     fn test_se_vx_byte_neq() {
         let mut chip8 = setup();
         let test_opcode = 0x32B0;
-        let initial_pc = 0;
+        let initial_pc = 512;
         chip8.opcode = test_opcode;
         chip8.v[2] = 0xFF;
         chip8.pc = initial_pc;
@@ -275,7 +347,7 @@ mod test {
     fn test_sne_vx_byte_neq() {
         let mut chip8 = setup();
         let test_opcode = 0x32B0;
-        let initial_pc = 0;
+        let initial_pc = 512;
         chip8.opcode = test_opcode;
         chip8.v[2] = 0xFF;
         chip8.pc = initial_pc;
@@ -291,7 +363,7 @@ mod test {
     #[test]
     fn test_sne_vx_byte_eq() {
         let mut chip8 = setup();
-        let initial_pc = 0;
+        let initial_pc = 512;
         chip8.opcode = 0x4CB0;
         chip8.v[0xC] = 0xB0;
         chip8.pc = initial_pc;
@@ -306,7 +378,7 @@ mod test {
     #[test]
     fn test_se_vx_vy_eq() {
         let mut chip8 = setup();
-        let initial_pc = 0;
+        let initial_pc = 512;
         chip8.opcode = 0x5CE0;
         chip8.pc = initial_pc;
         chip8.v[0xC] = 0xE;
@@ -323,7 +395,7 @@ mod test {
     #[test]
     fn test_se_vx_vy_neq() {
         let mut chip8 = setup();
-        let initial_pc = 0;
+        let initial_pc = 512;
         chip8.opcode = 0x5CE0;
         chip8.pc = initial_pc;
         chip8.v[0xC] = 0xE;
@@ -339,11 +411,119 @@ mod test {
     #[test]
     fn test_ld_vx_byte() {
         let mut chip8 = setup();
+        let initial_pc = 512;
         chip8.opcode = 0x60AA;
         chip8.v[0x0] = 5;
+        chip8.pc = initial_pc;
         ld_vx_byte(&mut chip8);
 
         assert_eq!(0xAA, chip8.v[0x0], "should load `kk` into `vx`");
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    fn test_ld_vx_vy() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x8690;
+        chip8.v[0x6] = 0xDA;
+        chip8.v[0x9] = 0x12;
+        chip8.pc = initial_pc;
+        ld_vx_vy(&mut chip8);
+
+        assert_eq!(0x12, chip8.v[0x6], "should store the value of `vy` in `vx`");
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    pub fn test_or_vx_vy() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x8DB1;
+        chip8.v[0xD] = 0xA;
+        chip8.v[0xB] = 0x5;
+        or_vx_vy(&mut chip8);
+
+        assert_eq!(
+            0xA | 0x5,
+            chip8.v[0xD],
+            "should store the result of `vx` OR `vy` in `vx`"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    pub fn test_and_vx_vy() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x8DB1;
+        chip8.v[0xD] = 0xA;
+        chip8.v[0xB] = 0x5;
+        and_vx_vy(&mut chip8);
+
+        assert_eq!(
+            0xA & 0x5,
+            chip8.v[0xD],
+            "should store the result of `vx` AND `vy` in `vx`"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    pub fn test_xor_vx_vy() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x8DB1;
+        chip8.v[0xD] = 0xA;
+        chip8.v[0xB] = 0x5;
+        xor_vx_vy(&mut chip8);
+
+        assert_eq!(
+            0xA ^ 0x5,
+            chip8.v[0xD],
+            "should store the result of `vx` XOR `vy` in `vx`"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    fn test_add_vx_byte() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x7210;
+        chip8.v[0x2] = 0x6;
+        chip8.pc = initial_pc;
+        add_vx_byte(&mut chip8);
+
+        assert_eq!(
+            0x16, chip8.v[0x2],
+            "should add `vx` to `kk` and store it in `vx`"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
     }
 
     #[test]
@@ -402,6 +582,229 @@ mod test {
     }
 
     #[test]
+    fn test_sub_vx_vy_greater_than() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x8355;
+        chip8.v[0x3] = 100;
+        chip8.v[0x5] = 25;
+        chip8.v[0xF] = 0;
+        chip8.pc = initial_pc;
+        sub_vx_vy(&mut chip8);
+
+        assert_eq!(1, chip8.v[0xF], "should set `vf` to 1 when `vx` > `vy`");
+        assert_eq!(
+            75, chip8.v[0x3],
+            "should subtract `vy` from `vx` and store results in `vx`"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    fn test_sub_vx_vy_less_than() {
+        // Revisit this, as it's possible it's wrong
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x8355;
+        chip8.v[0x3] = 25;
+        chip8.v[0x5] = 100;
+        chip8.v[0xF] = 0;
+        chip8.pc = initial_pc;
+        sub_vx_vy(&mut chip8);
+
+        assert_eq!(0, chip8.v[0xF], "should not set `vf` to 1 when `vx` < `vy`");
+        assert_eq!(
+            25, chip8.v[0x3],
+            "should not subtract `vy` from `vx` and store results in `vx`"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    fn test_shr_vx_vy_is_one() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x8016;
+        chip8.v[0x0] = 0b1001;
+        shr_vx_vy(&mut chip8);
+
+        assert_eq!(
+            1, chip8.v[0xF],
+            "should set `vf` to 1 when least significant bit of `vx` is 1"
+        );
+        assert_eq!(
+            4, chip8.v[0x0],
+            "should divide `vx` by 2 and store result in `vx`"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    fn test_shr_vx_vy_is_not_one() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x8016;
+        chip8.v[0x0] = 0b1000;
+        shr_vx_vy(&mut chip8);
+
+        assert_eq!(
+            0, chip8.v[0xF],
+            "should not set `vf` to 1 when least-significant bit is 0"
+        );
+        assert_eq!(8, chip8.v[0x0], "should not change `vx`");
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    fn test_subn_vx_vy_greater_than() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x8CD7;
+        chip8.v[0xD] = 200;
+        chip8.v[0xC] = 160;
+        chip8.v[0xF] = 0;
+        subn_vx_vy(&mut chip8);
+
+        assert_eq!(
+            40, chip8.v[0xC],
+            "should subtract `vx` from `vy` when `vy` > `vx` and store the result in `vx`"
+        );
+        assert_eq!(1, chip8.v[0xF], "should set `vf` to 1 when `vy` > `vx`");
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    fn test_subn_vx_vy_less_than() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x8CD7;
+        chip8.v[0xD] = 160;
+        chip8.v[0xC] = 200;
+        chip8.v[0xF] = 0;
+        subn_vx_vy(&mut chip8);
+
+        assert_eq!(
+            200, chip8.v[0xC],
+            "should not subtract `vx` from `vy` when `vy` < `vx`"
+        );
+        assert_eq!(0, chip8.v[0xF], "should set `vf` to 0 when `vy` < `vx`");
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    fn test_shl_vx_vy_is_one() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        let initial_vx: u8 = 0b10000000;
+        chip8.opcode = 0x8ABE;
+        chip8.v[0xA] = initial_vx;
+        shl_vx_vy(&mut chip8);
+
+        assert_eq!(
+            1, chip8.v[0xF],
+            "should set `vf` to 1 when most-significant bit is 1"
+        );
+        assert_eq!(
+            initial_vx << 1,
+            chip8.v[0xA],
+            "should multiply `vx` by 2 and store result in `vx`"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    fn test_shl_vx_vy_is_not_one() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        let initial_vx: u8 = 0b1;
+        chip8.opcode = 0x8ABE;
+        chip8.v[0xA] = initial_vx;
+        shl_vx_vy(&mut chip8);
+
+        assert_eq!(
+            0, chip8.v[0xF],
+            "should set `vf` to 0 when most-significant bit is not 1"
+        );
+        assert_eq!(
+            initial_vx << 1,
+            chip8.v[0xA],
+            "should multiply `vx` by 2 and store result in `vx`"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    fn test_sne_vx_vy() {}
+
+    #[test]
+    fn test_ld_i_addr() {}
+
+    #[test]
+    fn test_jp_v0_addr() {}
+
+    #[test]
+    fn test_rnd_vx_byte() {}
+
+    #[test]
+    fn test_drw_vx_vy_nibble() {}
+
+    #[test]
+    fn test_skp_vx() {}
+
+    #[test]
+    fn test_sknp_vx() {}
+
+    #[test]
+    fn test_ld_vx_dt() {}
+
+    #[test]
+    fn test_ld_vx_k() {}
+
+    #[test]
+    fn test_ld_dt_vx() {}
+
+    #[test]
+    fn test_ld_st_vx() {}
+
+    #[test]
+    fn test_add_i_vx() {}
+
+    #[test]
+    fn test_ld_f_vx() {}
+
+    #[test]
     fn test_ld_b_vx() {
         let mut chip8 = setup();
         let test_opcode = 0xFB33;
@@ -424,4 +827,10 @@ mod test {
             "should increment program counter by 2"
         );
     }
+
+    #[test]
+    fn test_ld_i_vx() {}
+
+    #[test]
+    fn test_ld_vx_i() {}
 }
