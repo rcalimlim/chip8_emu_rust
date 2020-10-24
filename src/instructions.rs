@@ -1,5 +1,7 @@
+extern crate rand;
 use crate::chip8::Chip8;
 use crate::lib::opcode_to_variables;
+use rand::SeedableRng;
 
 /// 0nnn - Jump to a machine code routine at nnn.
 pub fn sys_addr(chip8: &mut Chip8) {
@@ -159,9 +161,6 @@ pub fn subn_vx_vy(chip8: &mut Chip8) {
 
 /// `8xyE` - Set Vx = Vx SHL 1.
 pub fn shl_vx_vy(chip8: &mut Chip8) {
-    // 8xyE - SHL Vx {, Vy}
-    // Set Vx = Vx SHL 1.
-    // If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
     let vars = opcode_to_variables(&chip8.opcode);
     match chip8.v[vars.x] >> 7 {
         1 => {
@@ -176,16 +175,31 @@ pub fn shl_vx_vy(chip8: &mut Chip8) {
 }
 
 /// `9xy0` - Skip next instruction if Vx != Vy.
-pub fn sne_vx_vy(chip8: &mut Chip8) {}
+pub fn sne_vx_vy(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    if chip8.v[vars.x] != chip8.v[vars.y] {
+        chip8.pc += 2;
+    }
+}
 
 /// `Annn` - Set I = nnn.
-pub fn ld_i_addr(chip8: &mut Chip8) {}
+pub fn ld_i_addr(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    chip8.i = vars.nnn;
+    chip8.pc += 2;
+}
 
 /// `Bnnn` - Jump to location nnn + V0.
-pub fn jp_v0_addr(chip8: &mut Chip8) {}
+pub fn jp_v0_addr(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    chip8.pc = vars.nnn + chip8.v[0x0] as u16;
+}
 
 /// `Cxkk` - Set Vx = random byte AND kk.
-pub fn rnd_vx_byte(chip8: &mut Chip8) {}
+pub fn rnd_vx_byte(chip8: &mut Chip8, rnd_fn: fn() -> u8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    chip8.v[vars.x] = vars.kk & rnd_fn();
+}
 
 /// `Dxyn` - Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
 pub fn drw_vx_vy_nibble(chip8: &mut Chip8) {}
@@ -766,16 +780,84 @@ mod test {
     }
 
     #[test]
-    fn test_sne_vx_vy() {}
+    fn test_sne_vx_vy_neq() {
+        // 9xy0 - SNE Vx, Vy
+        // Skip next instruction if Vx != Vy.
+        // The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x9120;
+        chip8.v[0x1] = 100;
+        chip8.v[0x2] = 150;
+        chip8.pc = initial_pc;
+        sne_vx_vy(&mut chip8);
+
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2 when `vx` and `vy` are not equal"
+        );
+    }
 
     #[test]
-    fn test_ld_i_addr() {}
+    fn test_sne_vx_vy_eq() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x9120;
+        chip8.v[0x1] = 100;
+        chip8.v[0x2] = 100;
+        chip8.pc = initial_pc;
+        sne_vx_vy(&mut chip8);
+
+        assert_eq!(
+            initial_pc, chip8.pc,
+            "should not increment program counter by 2 when `vx` and `vy` are equal"
+        );
+    }
 
     #[test]
-    fn test_jp_v0_addr() {}
+    fn test_ld_i_addr() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0xA666;
+        chip8.i = 0;
+        ld_i_addr(&mut chip8);
+
+        assert_eq!(0x666, chip8.i, "should load addr into register i");
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
 
     #[test]
-    fn test_rnd_vx_byte() {}
+    fn test_jp_v0_addr() {
+        let mut chip8 = setup();
+        chip8.opcode = 0xB512;
+        chip8.v[0x0] = 100;
+        chip8.pc = 512;
+        jp_v0_addr(&mut chip8);
+
+        assert_eq!(
+            0x512 + 100,
+            chip8.pc,
+            "should set program counter to `nnn` + `v0`"
+        );
+    }
+
+    #[test]
+    fn test_rnd_vx_byte() {
+        let mut chip8 = setup();
+        chip8.opcode = 0xC144;
+        rnd_vx_byte(&mut chip8, || 0x40);
+
+        assert_eq!(
+            0x44 & 0x40,
+            chip8.v[0x1],
+            "should AND random number and `kk` and store result in `vx`"
+        );
+    }
 
     #[test]
     fn test_drw_vx_vy_nibble() {}
