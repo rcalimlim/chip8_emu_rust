@@ -1,6 +1,8 @@
 mod chip8;
 mod instructions;
+mod input_output;
 mod lib;
+
 use chip8::Chip8;
 
 fn main() {
