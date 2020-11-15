@@ -17,8 +17,8 @@ pub struct Chip8 {
 }
 
 impl Chip8 {
-    pub fn new() -> Self {
-        Chip8 {
+    pub fn initialize() -> Self {
+        let mut chip8 = Chip8 {
             opcode: 0,
             memory: [0; 4096],
             v: [0; 16],
@@ -30,16 +30,13 @@ impl Chip8 {
             stack: [0; 16],
             sp: 0,
             key: [0; 16],
-        }
-    }
+        };
 
-    pub fn initialize(&mut self) {
-        // initialize:
-        // - registers
-        // - memory
         for (i, font_byte) in FONTS.iter().enumerate() {
-            self.memory[i] = *font_byte;
+            chip8.memory[i] = *font_byte;
         }
+
+        chip8
     }
 
     pub fn load_rom(&mut self, rom_path: &str) {

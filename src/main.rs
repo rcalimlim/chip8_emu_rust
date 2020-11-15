@@ -1,6 +1,6 @@
 mod chip8;
-mod instructions;
 mod input_output;
+mod instructions;
 mod lib;
 
 use chip8::Chip8;
@@ -9,8 +9,7 @@ fn main() {
     // setup graphics
     // setup input
 
-    let mut chip8 = Chip8::new();
-    chip8.initialize();
+    let mut chip8 = Chip8::initialize();
     chip8.load_rom("../chip8-test-rom/test_opcode.ch8");
 
     loop {
