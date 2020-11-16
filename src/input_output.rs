@@ -37,7 +37,7 @@ impl InputOutput {
         // Set up video
         let video_subsystem = sdl_context.video().unwrap();
         let window = video_subsystem
-            .window("Rusty CHIP-8", 64 * scale, 32 * scale)
+            .window("rfc chip8", 64 * scale, 32 * scale)
             .position_centered()
             .opengl()
             .build()
@@ -48,10 +48,7 @@ impl InputOutput {
         canvas.clear();
         canvas.present();
 
-        Self {
-            canvas: canvas,
-            device: device,
-        }
+        Self { canvas, device }
     }
 
     /// Handles key down event
