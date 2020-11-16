@@ -1,4 +1,5 @@
 use crate::instructions::*;
+use crate::lib::opcode_to_variables;
 use std::fs::File;
 use std::io::Read;
 
@@ -59,14 +60,11 @@ impl Chip8 {
         self.opcode = (high_byte as u16) << 8 | low_byte as u16;
 
         // decode opcode
-        let opcode_nibbles = [
-            self.opcode >> 12,
-            self.opcode >> 8 & 0xF,
-            self.opcode >> 4 & 0xF,
-            self.opcode & 0xF,
-        ];
+        let opcode_nibbles = opcode_to_variables(&self.opcode).nibbles;
+
         match opcode_nibbles {
             [0x1, _, _, _] => jp_addr(self),
+            [0x6, _, _, _] => ld_vx_byte(self),
             _ => panic!("Not a valid opcode: {:?}", self.opcode),
         }
 
@@ -85,7 +83,7 @@ impl Chip8 {
         true
     }
 
-    pub fn set_keys(&self) {
+    pub fn set_key(&self, key: usize, value: bool) {
         // store key press state
     }
 }
@@ -116,15 +114,13 @@ mod tests {
 
     #[test]
     fn read_fonts_into_memory() {
-        let mut chip8 = Chip8::new();
-        chip8.initialize();
+        let mut chip8 = Chip8::initialize();
         assert_eq!(chip8.memory[..80].iter().eq(FONTS.iter()), true);
     }
 
     #[test]
     fn load_rom_into_memory() {
-        let mut chip8 = Chip8::new();
-        chip8.initialize();
+        let mut chip8 = Chip8::initialize();
         chip8.load_rom("test/test-rom.ch8");
 
         let mut data: Vec<u8> = Vec::new();
