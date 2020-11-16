@@ -1,5 +1,7 @@
+extern crate rand;
+
 use crate::instructions::*;
-use crate::lib::opcode_to_variables;
+use crate::lib::*;
 use std::fs::File;
 use std::io::Read;
 
@@ -62,10 +64,49 @@ impl Chip8 {
         // decode opcode
         let opcode_nibbles = opcode_to_variables(&self.opcode).nibbles;
 
+        // closure that panics on invalid opcode
+        let panic_invalid_opcode = || {
+            panic!("Not a valid opcode: {:#X?}", self.opcode);
+        };
+
+        // match opcodes to instructions
         match opcode_nibbles {
-            [0x1, _, _, _] => jp_addr(self),
-            [0x6, _, _, _] => ld_vx_byte(self),
-            _ => panic!("Not a valid opcode: {:?}", self.opcode),
+            [0x0, 0x0, 0xE, 0x0] => cls(self),                // 0x00E0
+            [0x0, 0x0, 0xE, 0xE] => ret(self),                // 0x00EE
+            [0x0, _, _, _] => sys_addr(self),                 // 0x0nnn
+            [0x1, _, _, _] => jp_addr(self),                  // 0x1nnn
+            [0x2, _, _, _] => call_addr(self),                // 0x2nnn
+            [0x3, _, _, _] => se_vx_byte(self),               // 0x3xkk
+            [0x4, _, _, _] => sne_vx_byte(self),              // 0x4xkk
+            [0x5, _, _, 0x0] => se_vx_vy(self),               // 0x5xy0
+            [0x6, _, _, _] => ld_vx_byte(self),               // 0x6xkk
+            [0x7, _, _, _] => add_vx_byte(self),              // 0x7xkk
+            [0x8, _, _, 0] => ld_vx_vy(self),                 // 0x8xy0
+            [0x8, _, _, 1] => or_vx_vy(self),                 // 0x8xy1
+            [0x8, _, _, 2] => and_vx_vy(self),                // 0x8xy2
+            [0x8, _, _, 3] => xor_vx_vy(self),                // 0x8xy3
+            [0x8, _, _, 4] => add_vx_vy(self),                // 0x8xy4
+            [0x8, _, _, 5] => sub_vx_vy(self),                // 0x8xy5
+            [0x8, _, _, 6] => shr_vx_vy(self),                // 0x8xy6
+            [0x8, _, _, 7] => subn_vx_vy(self),               // 0x8xy7
+            [0x8, _, _, 0xE] => shl_vx_vy(self),              // 0x8xyE
+            [0x9, _, _, 0x0] => sne_vx_vy(self),              // 0x9xy0
+            [0xA, _, _, _] => ld_i_addr(self),                // 0xAnnn
+            [0xB, _, _, _] => jp_v0_addr(self),               // 0xBnnn
+            [0xC, _, _, _] => rnd_vx_byte(self, gen_rand_u8), // 0xCnnn
+            [0xD, _, _, _] => drw_vx_vy_nibble(self),         // 0xDxyn
+            [0xE, _, 0x9, 0xE] => skp_vx(self),               // 0xEx9E
+            [0xE, _, 0xA, 0x1] => sknp_vx(self),              // 0xExA1
+            [0xF, _, 0x0, 0x7] => ld_vx_dt(self),             // 0xFx07
+            [0xF, _, 0x0, 0xA] => ld_vx_k(self),              // 0xFx0A
+            [0xF, _, 0x1, 0x5] => ld_dt_vx(self),             // Fx15
+            [0xF, _, 0x1, 0x8] => ld_st_vx(self),             // Fx18
+            [0xF, _, 0x1, 0xE] => add_i_vx(self),             // Fx1E
+            [0xF, _, 0x2, 0x9] => ld_f_vx(self),              // Fx29
+            [0xF, _, 0x3, 0x3] => ld_b_vx(self),              // Fx33
+            [0xF, _, 0x5, 0x5] => ld_i_vx(self),              // Fx55
+            [0xF, _, 0x6, 0x5] => ld_vx_i(self),              // Fx65
+            _ => panic_invalid_opcode(),
         }
 
         // update timers
@@ -73,6 +114,7 @@ impl Chip8 {
             self.delay_timer -= 1;
         }
 
+        // 'beep' if sound timer is greater than 0
         if self.sound_timer > 0 {
             println!("*Beep*");
             self.sound_timer -= 1;
