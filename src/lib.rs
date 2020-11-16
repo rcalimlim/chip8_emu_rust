@@ -1,9 +1,11 @@
-// Opcode variable struct
-// - nibbles - All 4-bit values of the 16-bit word
-// - nnn or addr - A 12-bit value, the lowest 12 bits of the instruction
-// - x - A 4-bit value, the lower 4 bits of the high byte of the instruction
-// - y - A 4-bit value, the upper 4 bits of the low byte of the instruction
-// - kk or byte - An 8-bit value, the lowest 8 bits of the instruction
+use rand::{thread_rng, Rng};
+
+/// Opcode variable struct
+/// - nibbles - All 4-bit values of the 16-bit word
+/// - nnn or addr - A 12-bit value, the lowest 12 bits of the instruction
+/// - x - A 4-bit value, the lower 4 bits of the high byte of the instruction
+/// - y - A 4-bit value, the upper 4 bits of the low byte of the instruction
+/// - kk or byte - An 8-bit value, the lowest 8 bits of the instruction
 pub struct OpcodeVariables {
     pub nibbles: [usize; 4],
     pub nnn: u16,
@@ -24,7 +26,7 @@ impl OpcodeVariables {
     }
 }
 
-// Helper function that translates opcodes to instrution variables
+/// Helper function that translates opcodes to instruction variables
 pub fn opcode_to_variables(word: &u16) -> OpcodeVariables {
     let nibbles = [
         ((word & 0xF000) >> 12) as usize,
@@ -40,6 +42,12 @@ pub fn opcode_to_variables(word: &u16) -> OpcodeVariables {
         nibbles[2],
         (word & 0x00FF) as u8,
     )
+}
+
+/// Generate a random integer within [0, 256)
+pub fn gen_rand_u8() -> u8 {
+    let result: u8 = thread_rng().gen();
+    result
 }
 
 #[cfg(tests)]
