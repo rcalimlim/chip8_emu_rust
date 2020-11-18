@@ -14,7 +14,7 @@ pub struct Chip8 {
     pub gfx: [u8; 64 * 32], // graphics
     pub stack: [u16; 16],   // opcode stack
     pub sp: u16,            // stack pointer
-    pub key: [u8; 16],      // hex keypad to store key state
+    pub key: [bool; 16],    // hex keypad to store key state
     pub delay_timer: u8,    // counter register at 60Hz, counts down to 0
     pub sound_timer: u8,    // counter plays sound at 0, counts down to 0
 }
@@ -32,7 +32,7 @@ impl Chip8 {
             sound_timer: 0,
             stack: [0; 16],
             sp: 0,
-            key: [0; 16],
+            key: [false; 16],
         };
 
         for (i, font_byte) in FONTS.iter().enumerate() {

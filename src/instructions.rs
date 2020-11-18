@@ -202,10 +202,18 @@ pub fn rnd_vx_byte(chip8: &mut Chip8, rnd_fn: fn() -> u8) {
 }
 
 /// `Dxyn` - Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
-pub fn drw_vx_vy_nibble(chip8: &mut Chip8) {}
+pub fn drw_vx_vy_nibble(chip8: &mut Chip8) {
+    // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+    // The interpreter reads n bytes from memory, starting at the address stored in I. These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0. If the sprite is positioned so part of it is outside the coordinates of the display, it wraps around to the opposite side of the screen. See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
+}
 
 /// `Ex9E` - Skip next instruction if key with the value of Vx is pressed.
-pub fn skp_vx(chip8: &mut Chip8) {}
+pub fn skp_vx(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    if chip8.key[vars.x] == true {
+        chip8.pc += 2;
+    }
+}
 
 /// `ExA1` - Skip next instruction if key with the value of Vx is not pressed.
 pub fn sknp_vx(chip8: &mut Chip8) {}
@@ -858,10 +866,25 @@ mod test {
     }
 
     #[test]
-    fn test_drw_vx_vy_nibble() {}
+    fn test_drw_vx_vy_nibble() {
+        // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+        // The interpreter reads n bytes from memory, starting at the address stored in I. These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0. If the sprite is positioned so part of it is outside the coordinates of the display, it wraps around to the opposite side of the screen. See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
+        let mut chip8 = setup();
+    }
 
     #[test]
-    fn test_skp_vx() {}
+    fn test_skp_vx() {
+        let mut chip8 = setup();
+        chip8.opcode = 0xE19E;
+        chip8.pc = 512;
+        chip8.key[1] = true;
+        skp_vx(&mut chip8);
+
+        assert_eq!(
+            514, chip8.pc,
+            "should skip next instruction if `vx` value key is pressed"
+        );
+    }
 
     #[test]
     fn test_sknp_vx() {}
