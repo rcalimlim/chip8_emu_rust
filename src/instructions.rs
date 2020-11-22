@@ -214,6 +214,7 @@ pub fn drw_vx_vy_nibble(chip8: &mut Chip8) {
     let vx = chip8.v[vars.x];
     let vy = chip8.v[vars.y];
     let slice_index: usize = (64 * vy + vx).into();
+    let mut bit_was_erased = false;
 
     for (i, bit) in sprite_bits.iter().enumerate() {
         let wrapped_index = (slice_index + i) % (64 * (vy + 1)) as usize;
@@ -221,10 +222,14 @@ pub fn drw_vx_vy_nibble(chip8: &mut Chip8) {
         let gfx_bit = &mut chip8.gfx[wrapped_index];
         *gfx_bit = *gfx_bit ^ bit;
 
-        match original_bit == 1 && *gfx_bit == 0 {
-            true => chip8.v[0xF] = 1,
-            false => chip8.v[0xF] = 0,
+        if original_bit == 1 && *gfx_bit == 0 {
+            bit_was_erased = true;
         }
+    }
+
+    match bit_was_erased {
+        true => chip8.v[0xF] = 1,
+        false => chip8.v[0xF] = 0,
     }
 
     chip8.should_draw = true;
@@ -977,23 +982,20 @@ mod test {
         chip8.v[0xA] = 0;
         chip8.gfx = [1; 64 * 32];
         chip8.memory = [0; 4096];
-        let sprite = [1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1];
-        let mut sprite_xor = [1; 16];
-        for (i, &bit) in sprite.iter().enumerate() {
-            chip8.memory[chip8.i as usize + i] = bit;
-            chip8.gfx[i + 65] = 1;
-            sprite_xor[i] = bit ^ 1;
+        let sprites = [0b10101100, 0b11100011];
+        for (i, &sprite) in sprites.iter().enumerate() {
+            chip8.memory[chip8.i as usize + i] = sprite;
         }
         drw_vx_vy_nibble(&mut chip8);
 
         assert_eq!(
-            sprite_xor[0..7],
-            chip8.gfx[56..63],
+            into_bit_vec(sprites[0] ^ 0xFF),
+            chip8.gfx[56..64].to_vec(),
             "should XOR start of sprite to screen until wrap limit"
         );
         assert_eq!(
-            sprite_xor[8..],
-            chip8.gfx[0..7],
+            into_bit_vec(sprites[1] ^ 0xFF),
+            chip8.gfx[0..8].to_vec(),
             "should XOR remaining sprite to beginning of screen"
         );
         assert_eq!(true, chip8.should_draw, "should draw to screen");
