@@ -1,6 +1,6 @@
 extern crate rand;
 use crate::chip8::Chip8;
-use crate::utils::opcode_to_variables;
+use crate::utils::*;
 
 /// 0nnn - Jump to a machine code routine at nnn.
 pub fn sys_addr(chip8: &mut Chip8) {
@@ -202,8 +202,32 @@ pub fn rnd_vx_byte(chip8: &mut Chip8, rnd_fn: fn() -> u8) {
 
 /// `Dxyn` - Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
 pub fn drw_vx_vy_nibble(chip8: &mut Chip8) {
-    // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
-    // The interpreter reads n bytes from memory, starting at the address stored in I. These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0. If the sprite is positioned so part of it is outside the coordinates of the display, it wraps around to the opposite side of the screen. See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
+    let vars = opcode_to_variables(&chip8.opcode);
+    let sprite_start = chip8.i as usize;
+    let sprite_end = sprite_start + vars.nibbles[3];
+    let mut sprite_bits = Vec::new();
+    for &byte in chip8.memory[sprite_start..sprite_end].iter() {
+        let mut bit_vec = into_bit_vec(byte);
+        sprite_bits.append(&mut bit_vec);
+    }
+
+    let vx = chip8.v[vars.x];
+    let vy = chip8.v[vars.y];
+    let slice_index: usize = (64 * vy + vx).into();
+
+    for (i, bit) in sprite_bits.iter().enumerate() {
+        let wrapped_index = (slice_index + i) % (64 * (vy + 1)) as usize;
+        let original_bit = chip8.gfx[wrapped_index];
+        let gfx_bit = &mut chip8.gfx[wrapped_index];
+        *gfx_bit = *gfx_bit ^ bit;
+
+        match original_bit == 1 && *gfx_bit == 0 {
+            true => chip8.v[0xF] = 1,
+            false => chip8.v[0xF] = 0,
+        }
+    }
+
+    chip8.should_draw = true;
 }
 
 /// `Ex9E` - Skip next instruction if key with the value of Vx is pressed.
@@ -786,9 +810,6 @@ mod test {
 
     #[test]
     fn test_sne_vx_vy_neq() {
-        // 9xy0 - SNE Vx, Vy
-        // Skip next instruction if Vx != Vy.
-        // The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
         let mut chip8 = setup();
         let initial_pc = 512;
         chip8.opcode = 0x9120;
@@ -865,10 +886,118 @@ mod test {
     }
 
     #[test]
-    fn test_drw_vx_vy_nibble() {
-        // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
-        // The interpreter reads n bytes from memory, starting at the address stored in I. These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0. If the sprite is positioned so part of it is outside the coordinates of the display, it wraps around to the opposite side of the screen. See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
+    fn test_drw_vx_vy_nibble_no_collision_no_wrap() {
         let mut chip8 = setup();
+        chip8.opcode = 0xD8B1;
+        chip8.i = 1000;
+        chip8.v[0xF] = 0;
+        chip8.v[0x8] = 1;
+        chip8.v[0xB] = 1;
+        chip8.gfx = [0; 64 * 32];
+        chip8.memory = [0; 4096];
+        let sprite = 0b10101100;
+        chip8.memory[chip8.i as usize] = sprite;
+        drw_vx_vy_nibble(&mut chip8);
+
+        assert_eq!(
+            into_bit_vec(sprite),
+            (chip8.gfx[65..73]).to_vec(),
+            "should XOR sprite to screen without wrap"
+        );
+        assert_eq!(true, chip8.should_draw, "should draw to screen");
+        assert_eq!(
+            0, chip8.v[0xF],
+            "should not set `vf` when there's no collision"
+        );
+    }
+
+    #[test]
+    fn test_drw_vx_vy_nibble_no_collision_wrap() {
+        let mut chip8 = setup();
+        chip8.opcode = 0xD0A2;
+        chip8.i = 1000;
+        chip8.v[0xF] = 0;
+        chip8.v[0x0] = 56;
+        chip8.v[0xA] = 0;
+        chip8.gfx = [0; 64 * 32];
+        chip8.memory = [0; 4096];
+        let sprites = [0b10101100, 0b11100011];
+        for (i, &sprite) in sprites.iter().enumerate() {
+            chip8.memory[chip8.i as usize + i] = sprite;
+        }
+        drw_vx_vy_nibble(&mut chip8);
+
+        assert_eq!(
+            into_bit_vec(sprites[0]),
+            chip8.gfx[56..64].to_vec(),
+            "should XOR start of sprite to screen until wrap limit"
+        );
+        assert_eq!(
+            into_bit_vec(sprites[1]),
+            chip8.gfx[0..8].to_vec(),
+            "should XOR remaining sprite to beginning of screen"
+        );
+        assert_eq!(true, chip8.should_draw, "should draw to screen");
+        assert_eq!(
+            0, chip8.v[0xF],
+            "should not set `vf` when there's no collision"
+        );
+    }
+
+    #[test]
+    fn test_drw_vx_vy_nibble_collision_no_wrap() {
+        let mut chip8 = setup();
+        chip8.opcode = 0xD8B1;
+        chip8.i = 1000;
+        chip8.v[0xF] = 0;
+        chip8.v[0x8] = 1;
+        chip8.v[0xB] = 1;
+        chip8.gfx = [1; 64 * 32];
+        chip8.memory = [0; 4096];
+        let sprite = 0b10101100;
+        chip8.memory[chip8.i as usize] = sprite;
+        drw_vx_vy_nibble(&mut chip8);
+
+        assert_eq!(
+            into_bit_vec(sprite ^ 0xFF),
+            chip8.gfx[65..73].to_vec(),
+            "should XOR sprite to screen without wrap"
+        );
+        assert_eq!(true, chip8.should_draw, "should draw to screen");
+        assert_eq!(1, chip8.v[0xF], "should set `vf` when there's collision");
+    }
+
+    #[test]
+    fn test_drw_vx_vy_nibble_collision_wrap() {
+        let mut chip8 = setup();
+        chip8.opcode = 0xD0A2;
+        chip8.i = 1000;
+        chip8.v[0xF] = 0;
+        chip8.v[0x0] = 56;
+        chip8.v[0xA] = 0;
+        chip8.gfx = [1; 64 * 32];
+        chip8.memory = [0; 4096];
+        let sprite = [1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1];
+        let mut sprite_xor = [1; 16];
+        for (i, &bit) in sprite.iter().enumerate() {
+            chip8.memory[chip8.i as usize + i] = bit;
+            chip8.gfx[i + 65] = 1;
+            sprite_xor[i] = bit ^ 1;
+        }
+        drw_vx_vy_nibble(&mut chip8);
+
+        assert_eq!(
+            sprite_xor[0..7],
+            chip8.gfx[56..63],
+            "should XOR start of sprite to screen until wrap limit"
+        );
+        assert_eq!(
+            sprite_xor[8..],
+            chip8.gfx[0..7],
+            "should XOR remaining sprite to beginning of screen"
+        );
+        assert_eq!(true, chip8.should_draw, "should draw to screen");
+        assert_eq!(1, chip8.v[0xF], "should set `vf` when there's collision");
     }
 
     #[test]
