@@ -17,6 +17,7 @@ pub struct Chip8 {
     pub key: [bool; 16],    // hex keypad to store key state
     pub delay_timer: u8,    // counter register at 60Hz, counts down to 0
     pub sound_timer: u8,    // counter plays sound at 0, counts down to 0
+    pub should_draw: bool,  // draw flag
 }
 
 impl Chip8 {
@@ -33,6 +34,7 @@ impl Chip8 {
             stack: [0; 16],
             sp: 0,
             key: [false; 16],
+            should_draw: false,
         };
 
         for (i, font_byte) in FONTS.iter().enumerate() {
