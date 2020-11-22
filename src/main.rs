@@ -1,7 +1,7 @@
 mod chip8;
 mod input_output;
 mod instructions;
-mod lib;
+mod utils;
 
 use chip8::Chip8;
 use input_output::InputOutput;

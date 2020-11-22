@@ -1,7 +1,7 @@
 extern crate rand;
 
 use crate::instructions::*;
-use crate::lib::*;
+use crate::utils::*;
 use std::fs::File;
 use std::io::Read;
 

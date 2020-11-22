@@ -1,7 +1,6 @@
 extern crate rand;
 use crate::chip8::Chip8;
-use crate::lib::opcode_to_variables;
-use rand::SeedableRng;
+use crate::utils::opcode_to_variables;
 
 /// 0nnn - Jump to a machine code routine at nnn.
 pub fn sys_addr(chip8: &mut Chip8) {
