@@ -61,13 +61,24 @@ where
 {
     let mut num = num;
     let mut bits = Vec::new();
-    while num > T::zero() {
+    let mut counter = 0;
+    loop {
         let bit: u8 = match (num & T::one()).try_into() {
             Ok(val) => val,
             Err(_) => panic!("Failed to cast input."),
         };
         bits.push(bit);
         num >>= T::one();
+        counter += 1;
+
+        if num <= T::zero() {
+            if counter % 8 != 0 {
+                for _ in 0..(8 - counter % 8) {
+                    bits.push(0);
+                }
+            }
+            break;
+        }
     }
     bits.reverse();
     bits
@@ -149,5 +160,13 @@ mod test {
             0, 1, 0,
         ];
         assert_eq!(expected, into_bit_vec(val));
+    }
+
+    #[test]
+    fn test_into_bit_vec_u8_padded() {
+        let val: u8 = 0b111010;
+        let expected: Vec<u8> = vec![0, 0, 1, 1, 1, 0, 1, 0];
+        let actual = into_bit_vec(val);
+        assert_eq!(expected, actual);
     }
 }
