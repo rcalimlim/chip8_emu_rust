@@ -67,11 +67,9 @@ impl Chip8 {
         let opcode_nibbles = opcode_to_variables(&self.opcode).nibbles;
 
         // closure that panics on invalid opcode
-        let panic_invalid_opcode = || {
-            panic!("Not a valid opcode: {:#X?}", self.opcode);
-        };
+        let panic_invalid_opcode = || {};
 
-        println!("{:#X?}", self.opcode);
+        println!("opcode: {:#X?}, pc: {:#X?}", self.opcode, self.pc);
 
         // match opcodes to instructions
         match opcode_nibbles {
@@ -110,7 +108,7 @@ impl Chip8 {
             [0xF, _, 0x3, 0x3] => ld_b_vx(self),              // Fx33
             [0xF, _, 0x5, 0x5] => ld_i_vx(self),              // Fx55
             [0xF, _, 0x6, 0x5] => ld_vx_i(self),              // Fx65
-            _ => panic_invalid_opcode(),
+            _ => panic!("Not a valid opcode: {:#X?}", self.opcode),
         }
 
         // update timers
