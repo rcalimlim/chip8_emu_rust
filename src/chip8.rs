@@ -71,6 +71,8 @@ impl Chip8 {
             panic!("Not a valid opcode: {:#X?}", self.opcode);
         };
 
+        println!("{:#X?}", self.opcode);
+
         // match opcodes to instructions
         match opcode_nibbles {
             [0x0, 0x0, 0xE, 0x0] => cls(self),                // 0x00E0

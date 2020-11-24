@@ -42,6 +42,8 @@ pub fn sne_vx_byte(chip8: &mut Chip8) {
     let vars = opcode_to_variables(&chip8.opcode);
 
     if chip8.v[vars.x] != vars.kk {
+        chip8.pc += 4;
+    } else {
         chip8.pc += 2;
     }
 }
@@ -51,6 +53,8 @@ pub fn se_vx_vy(chip8: &mut Chip8) {
     let vars = opcode_to_variables(&chip8.opcode);
 
     if chip8.v[vars.x] == chip8.v[vars.y] {
+        chip8.pc += 4;
+    } else {
         chip8.pc += 2;
     }
 }
@@ -65,7 +69,8 @@ pub fn ld_vx_byte(chip8: &mut Chip8) {
 /// `7xkk` - Set Vx = Vx + kk.
 pub fn add_vx_byte(chip8: &mut Chip8) {
     let vars = opcode_to_variables(&chip8.opcode);
-    chip8.v[vars.x] = chip8.v[vars.x] + vars.kk;
+    let vx = chip8.v[vars.x] as u16;
+    chip8.v[vars.x] = (vx + vars.kk as u16) as u8;
     chip8.pc += 2;
 }
 
@@ -177,6 +182,8 @@ pub fn shl_vx_vy(chip8: &mut Chip8) {
 pub fn sne_vx_vy(chip8: &mut Chip8) {
     let vars = opcode_to_variables(&chip8.opcode);
     if chip8.v[vars.x] != chip8.v[vars.y] {
+        chip8.pc += 4;
+    } else {
         chip8.pc += 2;
     }
 }
@@ -211,9 +218,9 @@ pub fn drw_vx_vy_nibble(chip8: &mut Chip8) {
         sprite_bits.append(&mut bit_vec);
     }
 
-    let vx = chip8.v[vars.x];
-    let vy = chip8.v[vars.y];
-    let slice_index: usize = (64 * vy + vx).into();
+    let vx = chip8.v[vars.x] as usize;
+    let vy = chip8.v[vars.y] as usize;
+    let slice_index: usize = 64 * vy + vx;
     let mut bit_was_erased = false;
 
     for (i, bit) in sprite_bits.iter().enumerate() {
@@ -233,6 +240,7 @@ pub fn drw_vx_vy_nibble(chip8: &mut Chip8) {
     }
 
     chip8.should_draw = true;
+    chip8.pc += 2;
 }
 
 /// `Ex9E` - Skip next instruction if key with the value of Vx is pressed.
@@ -402,9 +410,9 @@ mod test {
         sne_vx_byte(&mut chip8);
 
         assert_eq!(
-            initial_pc + 2,
+            initial_pc + 4,
             chip8.pc,
-            "should increment program counter by 2 when `vx` does not equal `kk`"
+            "should increment program counter by 4 when `vx` does not equal `kk`"
         );
     }
 
@@ -418,8 +426,9 @@ mod test {
         sne_vx_byte(&mut chip8);
 
         assert_eq!(
-            initial_pc, chip8.pc,
-            "should not increment program counter `vx` equals `kk`"
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2 when `vx` equals `kk`"
         );
     }
 
@@ -434,9 +443,9 @@ mod test {
         se_vx_vy(&mut chip8);
 
         assert_eq!(
-            initial_pc + 2,
+            initial_pc + 4,
             chip8.pc,
-            "should increment program counter by 2 when `vx` equals `vy`"
+            "should increment program counter by 4 when `vx` equals `vy`"
         )
     }
 
@@ -451,8 +460,9 @@ mod test {
         se_vx_vy(&mut chip8);
 
         assert_eq!(
-            initial_pc, chip8.pc,
-            "should not increment program counter when `vx` does not equal `vy`"
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2 when `vx` does not equal `vy`"
         )
     }
 
@@ -565,6 +575,26 @@ mod test {
 
         assert_eq!(
             0x16, chip8.v[0x2],
+            "should add `vx` to `kk` and store it in `vx`"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
+
+    #[test]
+    fn test_add_vx_byte_overflow() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        chip8.opcode = 0x76FF;
+        chip8.v[0x2] = 0x6;
+        chip8.pc = initial_pc;
+        add_vx_byte(&mut chip8);
+
+        assert_eq!(
+            0x6, chip8.v[0x2],
             "should add `vx` to `kk` and store it in `vx`"
         );
         assert_eq!(
@@ -824,9 +854,9 @@ mod test {
         sne_vx_vy(&mut chip8);
 
         assert_eq!(
-            initial_pc + 2,
+            initial_pc + 4,
             chip8.pc,
-            "should increment program counter by 2 when `vx` and `vy` are not equal"
+            "should increment program counter by 4 when `vx` and `vy` are not equal"
         );
     }
 
@@ -841,8 +871,9 @@ mod test {
         sne_vx_vy(&mut chip8);
 
         assert_eq!(
-            initial_pc, chip8.pc,
-            "should not increment program counter by 2 when `vx` and `vy` are equal"
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2 when `vx` and `vy` are equal"
         );
     }
 
@@ -976,6 +1007,7 @@ mod test {
     fn test_drw_vx_vy_nibble_collision_wrap() {
         let mut chip8 = setup();
         chip8.opcode = 0xD0A2;
+        chip8.pc = 512;
         chip8.i = 1000;
         chip8.v[0xF] = 0;
         chip8.v[0x0] = 56;
@@ -1000,6 +1032,7 @@ mod test {
         );
         assert_eq!(true, chip8.should_draw, "should draw to screen");
         assert_eq!(1, chip8.v[0xF], "should set `vf` when there's collision");
+        assert_eq!(514, chip8.pc, "should increment program counter by 2");
     }
 
     #[test]
