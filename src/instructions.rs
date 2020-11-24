@@ -14,6 +14,7 @@ pub fn cls(chip8: &mut Chip8) {}
 pub fn ret(chip8: &mut Chip8) {
     chip8.pc = chip8.stack[chip8.sp as usize];
     chip8.sp -= 1;
+    chip8.pc += 2;
 }
 
 /// `1nnn` - Jump to location nnn.
@@ -23,9 +24,10 @@ pub fn jp_addr(chip8: &mut Chip8) {
 
 /// `2nnn` - Call subroutine at nnn.
 pub fn call_addr(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
     chip8.sp += 1;
     chip8.stack[chip8.sp as usize] = chip8.pc;
-    chip8.pc = chip8.opcode & 0x0FFF;
+    chip8.pc = vars.nnn;
 }
 
 /// `3xkk` - Skip next instruction if Vx = kk.
@@ -322,8 +324,9 @@ mod test {
         chip8.opcode = 0x00EE;
         ret(&mut chip8);
         assert_eq!(
-            chip8.pc, test_addr,
-            "should set program counter to address at the top of the stack"
+            test_addr + 2,
+            chip8.pc,
+            "should set program counter to address at the top of the stack and add 2"
         );
         assert_eq!(
             chip8.sp,
