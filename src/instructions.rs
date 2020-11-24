@@ -36,6 +36,8 @@ pub fn se_vx_byte(chip8: &mut Chip8) {
     let vars = opcode_to_variables(&chip8.opcode);
 
     if chip8.v[vars.x] == vars.kk {
+        chip8.pc += 4;
+    } else {
         chip8.pc += 2;
     }
 }
@@ -397,9 +399,9 @@ mod test {
         se_vx_byte(&mut chip8);
 
         assert_eq!(
-            initial_pc + 2,
+            initial_pc + 4,
             chip8.pc,
-            "should increment program counter by 2 when `vx` equals `kk`"
+            "should increment program counter by 4 when `vx` equals `kk`"
         );
     }
 
@@ -414,8 +416,9 @@ mod test {
         se_vx_byte(&mut chip8);
 
         assert_eq!(
-            initial_pc, chip8.pc,
-            "should not increment program counter when `vx` does not equal `kk`"
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2 when `vx` does not equal `kk`"
         );
     }
 
