@@ -1,6 +1,7 @@
 extern crate rand;
 use crate::chip8::Chip8;
 use crate::utils::*;
+use std::convert::TryInto;
 
 /// 0nnn - Jump to a machine code routine at nnn.
 pub fn sys_addr(chip8: &mut Chip8) {
@@ -302,7 +303,17 @@ pub fn ld_i_vx(chip8: &mut Chip8) {
 }
 
 /// `Fx65` - Read registers V0 through Vx from memory starting at location I.
-pub fn ld_vx_i(chip8: &mut Chip8) {}
+pub fn ld_vx_i(chip8: &mut Chip8) {
+    let vars = opcode_to_variables(&chip8.opcode);
+    let mem_start = chip8.i as usize;
+    for (i, &val) in chip8.memory[mem_start..mem_start + vars.x]
+        .iter()
+        .enumerate()
+    {
+        chip8.v[i] = val;
+    }
+    chip8.pc += 2;
+}
 
 #[cfg(test)]
 mod test {
@@ -1108,11 +1119,12 @@ mod test {
         let mut chip8 = setup();
         let initial_pc = 512;
         let mem_start: usize = 1024;
-        chip8.i = mem_start as u16;
         chip8.opcode = 0xFF55;
+        chip8.pc = initial_pc;
+        chip8.i = mem_start as u16;
         for i in 0..16 {
             chip8.v[i] = 123;
-            chip8.memory[chip8.i as usize + i] = 0;
+            chip8.memory[mem_start + i] = 0;
         }
         ld_i_vx(&mut chip8);
 
@@ -1129,5 +1141,28 @@ mod test {
     }
 
     #[test]
-    fn test_ld_vx_i() {}
+    fn test_ld_vx_i() {
+        let mut chip8 = setup();
+        let initial_pc = 512;
+        let mem_start: usize = 1024;
+        chip8.opcode = 0xFF65;
+        chip8.pc = initial_pc;
+        chip8.i = mem_start as u16;
+        for i in 0..0xF {
+            chip8.v[i] = 0;
+            chip8.memory[mem_start + i] = 123;
+        }
+        ld_vx_i(&mut chip8);
+
+        assert_eq!(
+            chip8.memory[mem_start..mem_start + 0xF],
+            chip8.v[0..0xF],
+            "should copy values from memory into `v` registers"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
+        );
+    }
 }
