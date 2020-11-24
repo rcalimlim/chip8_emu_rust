@@ -227,22 +227,16 @@ pub fn drw_vx_vy_nibble(chip8: &mut Chip8) {
     let vx = chip8.v[vars.x] as usize;
     let vy = chip8.v[vars.y] as usize;
     let slice_index: usize = 64 * vy + vx;
-    let mut bit_was_erased = false;
 
     for (i, bit) in sprite_bits.iter().enumerate() {
-        let wrapped_index = (slice_index + i) % (64 * (vy + 1)) as usize;
+        let wrapped_index = (slice_index + i) % (64 * 32) as usize;
         let original_bit = chip8.gfx[wrapped_index];
         let gfx_bit = &mut chip8.gfx[wrapped_index];
         *gfx_bit = *gfx_bit ^ bit;
 
         if original_bit == 1 && *gfx_bit == 0 {
-            bit_was_erased = true;
+            chip8.v[0xF] = 1;
         }
-    }
-
-    match bit_was_erased {
-        true => chip8.v[0xF] = 1,
-        false => chip8.v[0xF] = 0,
     }
 
     chip8.should_draw = true;
@@ -987,21 +981,17 @@ mod test {
         chip8.v[0xA] = 0;
         chip8.gfx = [0; 64 * 32];
         chip8.memory = [0; 4096];
-        let sprites = [0b10101100, 0b11100011];
+        let sprites: [u8; 2] = [0b10101100, 0b11100011];
+        let full_sprite = ((sprites[0] as u16) << 8) + sprites[1] as u16;
         for (i, &sprite) in sprites.iter().enumerate() {
             chip8.memory[chip8.i as usize + i] = sprite;
         }
         drw_vx_vy_nibble(&mut chip8);
 
         assert_eq!(
-            into_bit_vec(sprites[0]),
-            chip8.gfx[56..64].to_vec(),
+            into_bit_vec(full_sprite),
+            chip8.gfx[56..72].to_vec(),
             "should XOR start of sprite to screen until wrap limit"
-        );
-        assert_eq!(
-            into_bit_vec(sprites[1]),
-            chip8.gfx[0..8].to_vec(),
-            "should XOR remaining sprite to beginning of screen"
         );
         assert_eq!(true, chip8.should_draw, "should draw to screen");
         assert_eq!(
@@ -1044,21 +1034,17 @@ mod test {
         chip8.v[0xA] = 0;
         chip8.gfx = [1; 64 * 32];
         chip8.memory = [0; 4096];
-        let sprites = [0b10101100, 0b11100011];
+        let sprites: [u8; 2] = [0b10101100, 0b11100011];
+        let full_sprite = ((sprites[0] as u16) << 8) + sprites[1] as u16;
         for (i, &sprite) in sprites.iter().enumerate() {
             chip8.memory[chip8.i as usize + i] = sprite;
         }
         drw_vx_vy_nibble(&mut chip8);
 
         assert_eq!(
-            into_bit_vec(sprites[0] ^ 0xFF),
-            chip8.gfx[56..64].to_vec(),
+            into_bit_vec(full_sprite ^ 0xFFFF),
+            chip8.gfx[56..72].to_vec(),
             "should XOR start of sprite to screen until wrap limit"
-        );
-        assert_eq!(
-            into_bit_vec(sprites[1] ^ 0xFF),
-            chip8.gfx[0..8].to_vec(),
-            "should XOR remaining sprite to beginning of screen"
         );
         assert_eq!(true, chip8.should_draw, "should draw to screen");
         assert_eq!(1, chip8.v[0xF], "should set `vf` when there's collision");
