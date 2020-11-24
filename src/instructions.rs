@@ -20,7 +20,8 @@ pub fn ret(chip8: &mut Chip8) {
 
 /// `1nnn` - Jump to location nnn.
 pub fn jp_addr(chip8: &mut Chip8) {
-    chip8.pc = chip8.opcode & 0x0FFF;
+    let vars = opcode_to_variables(&chip8.opcode);
+    chip8.pc = vars.nnn;
 }
 
 /// `2nnn` - Call subroutine at nnn.
@@ -348,8 +349,8 @@ mod test {
             "should set program counter to address at the top of the stack and add 2"
         );
         assert_eq!(
-            chip8.sp,
             initial_sp - 1,
+            chip8.sp,
             "should decrement stack pointer by one"
         );
     }
@@ -358,9 +359,15 @@ mod test {
     fn test_jp_addr() {
         let mut chip8 = setup();
         let test_opcode = 0x1ABC;
+        let initial_pc = 512;
         chip8.opcode = test_opcode;
+        chip8.pc = initial_pc;
         jp_addr(&mut chip8);
-        assert_eq!(chip8.pc, test_opcode & 0x0FFF);
+        assert_eq!(
+            test_opcode & 0x0FFF,
+            chip8.pc,
+            "should set program counter to `nnn`"
+        );
     }
 
     #[test]
