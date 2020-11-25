@@ -7,13 +7,15 @@ use chip8::Chip8;
 use input_output::InputOutput;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use std::env;
 use std::time::Duration;
 
 const SCALE: u32 = 12;
 
 fn main() {
     let mut chip8 = Chip8::initialize();
-    chip8.load_rom("../chip8-test-rom/test_opcode.ch8");
+    let args: Vec<String> = env::args().collect();
+    chip8.load_rom(&args[1]);
 
     let sdl_context = sdl2::init().unwrap();
     let mut io = InputOutput::initialize(&sdl_context, SCALE);
