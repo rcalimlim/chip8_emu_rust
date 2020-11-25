@@ -66,11 +66,6 @@ impl Chip8 {
         // decode opcode
         let opcode_nibbles = opcode_to_variables(&self.opcode).nibbles;
 
-        // closure that panics on invalid opcode
-        let panic_invalid_opcode = || {};
-
-        println!("opcode: {:#X?}, pc: {:#X?}", self.opcode, self.pc);
-
         // match opcodes to instructions
         match opcode_nibbles {
             [0x0, 0x0, 0xE, 0x0] => cls(self),                // 0x00E0
@@ -123,12 +118,8 @@ impl Chip8 {
         }
     }
 
-    pub fn should_draw(&self) -> bool {
-        true
-    }
-
-    pub fn set_key(&self, key: usize, value: bool) {
-        // store key press state
+    pub fn set_key(&mut self, key: usize, value: bool) {
+        self.key[key] = value;
     }
 }
 
@@ -158,7 +149,7 @@ mod tests {
 
     #[test]
     fn read_fonts_into_memory() {
-        let mut chip8 = Chip8::initialize();
+        let chip8 = Chip8::initialize();
         assert_eq!(chip8.memory[..80].iter().eq(FONTS.iter()), true);
     }
 
