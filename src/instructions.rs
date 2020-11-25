@@ -1,7 +1,7 @@
 extern crate rand;
 use crate::chip8::Chip8;
 use crate::utils::*;
-use std::convert::TryInto;
+use std::num::Wrapping;
 
 /// 0nnn - Jump to a machine code routine at nnn.
 pub fn sys_addr(chip8: &mut Chip8) {
@@ -127,15 +127,11 @@ pub fn add_vx_vy(chip8: &mut Chip8) {
 /// `8xy5` - Set Vx = Vx - Vy, set VF = NOT borrow.
 pub fn sub_vx_vy(chip8: &mut Chip8) {
     let vars = opcode_to_variables(&chip8.opcode);
-    match chip8.v[vars.x] > chip8.v[vars.y] {
-        true => {
-            chip8.v[0xF] = 1;
-            chip8.v[vars.x] = chip8.v[vars.x] - chip8.v[vars.y];
-        }
-        false => {
-            chip8.v[0xF] = 0;
-        }
-    };
+    chip8.v[0xF] = (chip8.v[vars.x] > chip8.v[vars.y]) as u8;
+
+    let lhs = Wrapping(chip8.v[vars.x]);
+    let rhs = Wrapping(chip8.v[vars.y]);
+    chip8.v[vars.x] = (lhs - rhs).0;
     chip8.pc += 2;
 }
 
@@ -717,7 +713,7 @@ mod test {
 
         assert_eq!(0, chip8.v[0xF], "should not set `vf` to 1 when `vx` < `vy`");
         assert_eq!(
-            25, chip8.v[0x3],
+            181, chip8.v[0x3],
             "should not subtract `vy` from `vx` and store results in `vx`"
         );
         assert_eq!(
