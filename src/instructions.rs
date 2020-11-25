@@ -207,6 +207,7 @@ pub fn jp_v0_addr(chip8: &mut Chip8) {
 pub fn rnd_vx_byte(chip8: &mut Chip8, rnd_fn: fn() -> u8) {
     let vars = opcode_to_variables(&chip8.opcode);
     chip8.v[vars.x] = vars.kk & rnd_fn();
+    chip8.pc += 2;
 }
 
 /// `Dxyn` - Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
@@ -286,8 +287,9 @@ pub fn ld_b_vx(chip8: &mut Chip8) {
 /// `Fx55` - Store registers V0 through Vx in memory starting at location I.
 pub fn ld_i_vx(chip8: &mut Chip8) {
     let vars = opcode_to_variables(&chip8.opcode);
-    for (i, &val) in chip8.v[0..vars.x].iter().enumerate() {
-        chip8.memory[chip8.i as usize + i] = val;
+    let mem_i = chip8.i as usize;
+    for i in 0..(vars.x + 1) {
+        chip8.memory[mem_i + i] = chip8.v[i]
     }
     chip8.pc += 2;
 }
@@ -928,13 +930,20 @@ mod test {
     #[test]
     fn test_rnd_vx_byte() {
         let mut chip8 = setup();
+        let initial_pc = 512;
         chip8.opcode = 0xC144;
+        chip8.pc = initial_pc;
         rnd_vx_byte(&mut chip8, || 0x40);
 
         assert_eq!(
             0x44 & 0x40,
             chip8.v[0x1],
             "should AND random number and `kk` and store result in `vx`"
+        );
+        assert_eq!(
+            initial_pc + 2,
+            chip8.pc,
+            "should increment program counter by 2"
         );
     }
 
