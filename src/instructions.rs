@@ -297,12 +297,9 @@ pub fn ld_i_vx(chip8: &mut Chip8) {
 /// `Fx65` - Read registers V0 through Vx from memory starting at location I.
 pub fn ld_vx_i(chip8: &mut Chip8) {
     let vars = opcode_to_variables(&chip8.opcode);
-    let mem_start = chip8.i as usize;
-    for (i, &val) in chip8.memory[mem_start..mem_start + vars.x]
-        .iter()
-        .enumerate()
-    {
-        chip8.v[i] = val;
+    let mem_i = chip8.i as usize;
+    for i in 0..(vars.x + 1) {
+        chip8.v[i] = chip8.memory[mem_i + i]
     }
     chip8.pc += 2;
 }
@@ -1161,13 +1158,13 @@ mod test {
         ld_b_vx(&mut chip8);
 
         assert_eq!(
-            chip8.memory[initial_i..(initial_i + 3)],
             [1, 2, 3],
+            chip8.memory[initial_i..(initial_i + 3)],
             "should store correct values in memory"
         );
         assert_eq!(
-            chip8.pc,
             initial_pc + 2,
+            chip8.pc,
             "should increment program counter by 2"
         );
     }
